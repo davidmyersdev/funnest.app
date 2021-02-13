@@ -49,7 +49,6 @@ export default {
     },
     drawLine(line) {
       const [start, ...remaining] = line.points
-      const last = remaining.pop()
 
       this.drawStart(start, {
         size: line.size,
@@ -57,10 +56,6 @@ export default {
       })
 
       remaining.forEach(this.drawSeg)
-
-      this.drawFinal(last, {
-        size: line.size,
-      })
     },
     repaint() {
       this.clear()
@@ -87,13 +82,6 @@ export default {
 
       this.drawSeg(point)
     },
-    addFinal(point) {
-      this.lastLine.points.push(point)
-
-      this.drawFinal(point, {
-        size: this.size,
-      })
-    },
     drawSeg(point) {
       // draw line segment
       this.context.lineTo(point.x, point.y)
@@ -104,6 +92,7 @@ export default {
       this.context.lineWidth = size
       this.context.strokeStyle = color
       this.context.fillStyle = color
+      this.context.lineCap = 'round'
       this.context.moveTo(point.x, point.y)
       this.context.beginPath()
       this.context.arc(point.x, point.y, (size / 2), 0, (2 * Math.PI))
@@ -111,13 +100,6 @@ export default {
       this.context.fill()
       this.context.beginPath()
       this.context.stroke()
-    },
-    drawFinal(point, { size }) {
-      this.context.lineTo(point.x, point.y)
-      this.context.beginPath()
-      this.context.arc(point.x, point.y, (size / 2), 0, (2 * Math.PI))
-      this.context.closePath()
-      this.context.fill()
     },
   },
   mounted() {
@@ -158,7 +140,7 @@ export default {
     const onTouchEnd = (event) => {
       const point = this.lastPoint
 
-      this.addFinal(point)
+      this.addSeg(point)
 
       window.removeEventListener('touchmove', onTouchMove)
       window.removeEventListener('touchend', onTouchEnd)
