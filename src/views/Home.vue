@@ -1,5 +1,5 @@
 <template>
-  <div class="container">
+  <div class="container p-0">
     <Canvas />
   </div>
 </template>
