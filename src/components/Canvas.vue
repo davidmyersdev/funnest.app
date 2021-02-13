@@ -27,6 +27,9 @@ export default {
     lastLine() {
       return this.lines[this.lines.length - 1]
     },
+    lastPoint() {
+      return this.lastLine.points[this.lastLine.points.length - 1]
+    },
   },
   methods: {
     getCoords(event) {
@@ -46,18 +49,17 @@ export default {
     },
     drawLine(line) {
       const [start, ...remaining] = line.points
+      const last = remaining.pop()
 
-      // draw starting point
-      this.context.moveTo(start.x, start.y)
-      this.context.lineWidth = line.size
-      this.context.strokeStyle = line.color
-      this.context.beginPath()
-      this.context.stroke()
+      this.drawStart(start, {
+        size: line.size,
+        color: line.color,
+      })
 
-      remaining.forEach((point) => {
-        // draw line segment
-        this.context.lineTo(point.x, point.y)
-        this.context.stroke()
+      remaining.forEach(this.drawSeg)
+
+      this.drawFinal(last, {
+        size: line.size,
       })
     },
     repaint() {
@@ -68,47 +70,75 @@ export default {
       this.lines = this.lines.slice(0, -1)
       this.repaint()
     },
-  },
-  mounted() {
-    this.context = this.$refs.canvas.getContext('2d')
-    this.context.lineCap = 'round'
-
-    this.width = this.$refs.canvas.parentElement.clientWidth
-    this.height = this.$refs.canvas.parentElement.clientHeight
-
-    const drawSeg = (point) => {
-      this.lastLine.points.push(point)
-
-      // draw line segment
-      this.context.lineTo(point.x, point.y)
-      this.context.stroke()
-    }
-
-    const startLine = (point) => {
+    addLine(point) {
       this.lines.push({
         color: this.color,
         size: this.size,
         points: [point],
       })
 
+      this.drawStart(point, {
+        size: this.size,
+        color: this.color,
+      })
+    },
+    addSeg(point) {
+      this.lastLine.points.push(point)
+
+      this.drawSeg(point)
+    },
+    addFinal(point) {
+      this.lastLine.points.push(point)
+
+      this.drawFinal(point, {
+        size: this.size,
+      })
+    },
+    drawSeg(point) {
+      // draw line segment
+      this.context.lineTo(point.x, point.y)
+      this.context.stroke()
+    },
+    drawStart(point, { size, color }) {
       // draw starting point
+      this.context.lineWidth = size
+      this.context.strokeStyle = color
+      this.context.fillStyle = color
       this.context.moveTo(point.x, point.y)
-      this.context.lineWidth = this.size
-      this.context.strokeStyle = this.color
+      this.context.beginPath()
+      this.context.arc(point.x, point.y, (size / 2), 0, (2 * Math.PI))
+      this.context.closePath()
+      this.context.fill()
       this.context.beginPath()
       this.context.stroke()
-    }
+    },
+    drawFinal(point, { size }) {
+      this.context.lineTo(point.x, point.y)
+      this.context.beginPath()
+      this.context.arc(point.x, point.y, (size / 2), 0, (2 * Math.PI))
+      this.context.closePath()
+      this.context.fill()
+    },
+  },
+  mounted() {
+    this.context = this.$refs.canvas.getContext('2d')
+    this.context.lineCap = 'round'
+    this.context.translate(0.5, 0.5)
+
+    // match container dimensions
+    this.width = this.$refs.canvas.parentElement.clientWidth
+    this.height = this.$refs.canvas.parentElement.clientHeight
 
     const onMouseMove = (event) => {
       const point = this.getCoords(event)
 
-      drawSeg(point)
+      this.addSeg(point)
     }
 
     const onMouseDown = (event) => {
       const point = this.getCoords(event)
 
-      startLine(point)
+      this.addLine(point)
 
       window.addEventListener('mousemove', onMouseMove)
       window.addEventListener('mouseup', () => {
@@ -121,8 +151,17 @@ export default {
       if (event.touches.length === 1) {
         const point = this.getCoords(event.touches[0])
 
-        drawSeg(point)
+        this.addSeg(point)
       }
+    }
+
+    const onTouchEnd = (event) => {
+      const point = this.lastPoint
+
+      this.addFinal(point)
+
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
     }
 
     const onTouchStart = (event) => {
@@ -131,12 +170,10 @@ export default {
       if (event.touches.length === 1) {
         const point = this.getCoords(event.touches[0])
 
-        startLine(point)
+        this.addLine(point)
 
         window.addEventListener('touchmove', onTouchMove)
-        window.addEventListener('touchend', () => {
-          window.removeEventListener('touchmove', onTouchMove)
-        })
+        window.addEventListener('touchend', onTouchEnd)
       }
     }
 
