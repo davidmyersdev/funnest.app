@@ -76,9 +76,7 @@ export default {
     this.width = this.$refs.canvas.parentElement.clientWidth
     this.height = this.$refs.canvas.parentElement.clientHeight
 
-    const onMouseMove = (event) => {
-      const point = this.getCoords(event)
-
+    const drawSeg = (point) => {
       this.lastLine.points.push(point)
 
       // draw line segment
@@ -86,9 +84,7 @@ export default {
       this.context.stroke()
     }
 
-    this.$refs.canvas.addEventListener('mousedown', (event) => {
-      const point = this.getCoords(event)
-
+    const startLine = (point) => {
       this.lines.push({
         color: this.color,
         size: this.size,
@@ -101,12 +97,51 @@ export default {
       this.context.strokeStyle = this.color
       this.context.beginPath()
       this.context.stroke()
+    }
+
+    const onMouseMove = (event) => {
+      const point = this.getCoords(event)
+
+      drawSeg(point)
+    }
+
+    const onMouseDown = (event) => {
+      const point = this.getCoords(event)
+
+      startLine(point)
 
       window.addEventListener('mousemove', onMouseMove)
       window.addEventListener('mouseup', () => {
         window.removeEventListener('mousemove', onMouseMove)
       })
-    })
+    }
+
+    const onTouchMove = (event) => {
+      // only interact if a single finger is on the screen
+      if (event.touches.length === 1) {
+        const point = this.getCoords(event.touches[0])
+
+        drawSeg(point)
+      }
+    }
+
+    const onTouchStart = (event) => {
+      event.preventDefault()
+      // only interact if a single finger is on the screen
+      if (event.touches.length === 1) {
+        const point = this.getCoords(event.touches[0])
+
+        startLine(point)
+
+        window.addEventListener('touchmove', onTouchMove)
+        window.addEventListener('touchend', () => {
+          window.removeEventListener('touchmove', onTouchMove)
+        })
+      }
+    }
+
+    this.$refs.canvas.addEventListener('mousedown', onMouseDown)
+    this.$refs.canvas.addEventListener('touchstart', onTouchStart)
   }
 }
 </script>
