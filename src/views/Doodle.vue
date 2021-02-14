@@ -1,147 +1,90 @@
 <template>
   <div class="container">
-    <div v-if="!starting && !join">
-      <button @click="startSession" class="btn btn-primary">Start Session</button>
-      <button @click="joinSession" class="btn btn-secondary ms-1">Join Session</button>
-    </div>
-
-    <div v-if="starting">
+    <fieldset class="mb-3">
+      <legend>Create Room</legend>
       <div class="mb-3">
-        <label class="form-label">Your Request</label>
-        <input v-model="myOffer" type="text" class="form-control">
-        <div class="form-text">Send this to a friend.</div>
+        <label for="disabledTextInput" class="form-label">Invite Link</label>
+        <input v-model="inviteLink" type="text" class="form-control">
       </div>
-      <div class="mb-3">
-        <label class="form-label">Their Answer</label>
-        <input v-model="theirAnswer" type="text" class="form-control">
-        <div class="form-text">Get this from a friend.</div>
-      </div>
-      <button @click="acceptAnswer" class="btn btn-secondary ms-1">Accept Answer</button>
-    </div>
-    <div v-if="join">
-      <div class="mb-3">
-        <label class="form-label">Their Request</label>
-        <input v-model="theirOffer" type="text" class="form-control">
-        <div class="form-text">Send this to a friend.</div>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Your Answer</label>
-        <input v-model="myAnswer" type="text" class="form-control">
-        <div class="form-text">Get this from a friend.</div>
-      </div>
-      <button @click="acceptRequest" class="btn btn-secondary ms-1">Accept Request</button>
-    </div>
-    <canvas ref="canvas" width="500" height="500"></canvas>
+      <button @click="createRoom" type="submit" class="btn btn-primary">Create</button>
+    </fieldset>
+    <Canvas ref="canvas" />
   </div>
 </template>
 
 <script>
+import Canvas from '@/components/Canvas.vue'
+import firebase from '@/firebase'
 import P2P from '@/lib/p2p'
+
 export default {
+  name: 'Doodle',
+  components: {
+    Canvas,
+  },
   data() {
     return {
-      p2p: null,
-      myOffer: '',
-      myAnswer: '',
-      theirOffer: '',
-      theirAnswer: '',
-      starting: false,
-      join: false,
-      context: null,
+      room: {
+        id: null,
+      },
     }
   },
-  methods: {
-    createOffer() {
-      this.p2p.createOffer().then((offer) => {
-        this.myOffer = btoa(JSON.stringify(offer))
-      })
-    },
-    acceptOffer() {
-      this.p2p.acceptOffer(JSON.parse(atob(this.theirOffer))).then((answer) => {
-        this.myAnswer = btoa(JSON.stringify(answer))
-      })
-    },
-    acceptAnswer() {
-      this.p2p.acceptAnswer(JSON.parse(atob(this.theirAnswer)))
-    },
-    startSession() {
-      this.starting = true
-
-      this.createOffer()
-    },
-    joinSession() {
-      this.join = true
-    },
-    acceptRequest() {
-      this.acceptOffer()
-    },
-    onMessage(data) {
-      if (data) {
-        switch (data.message) {
-          case 'start':
-            this.start(data.value.x, data.value.y)
-            break;
-          case 'move':
-            this.move(data.value.x, data.value.y)
-            break;
-          default:
-            break;
-        }
-      }
-    },
-    start(x, y) {
-      this.context.moveTo(x, y)
-      this.context.beginPath()
-      this.context.stroke()
-    },
-    startPeer(x, y) {
-      this.p2p.send({
-        message: 'start',
-        value: { x, y },
-      })
-    },
-    move(x, y) {
-      this.context.lineTo(x, y)
-      this.context.stroke()
-    },
-    movePeer(x, y) {
-      this.p2p.send({
-        message: 'move',
-        value: { x, y },
-      })
+  computed: {
+    inviteLink() {
+      return this.room.id ? `${location.protocol}//${location.host}/doodle/${this.room.id}` : null
     },
   },
-  mounted() {
+  methods: {
+    async createRoom() {
+      const offer = await this.p2p.createOffer()
+      const roomRef = await firebase.firestore().collection('rooms').add({
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp,
+        },
+      })
+
+      this.room.id = roomRef.id
+
+      roomRef.onSnapshot(async (snapshot) => {
+        const room = snapshot.data()
+
+        if (room.answer) {
+          this.p2p.acceptAnswer(room.answer).then(() => {
+            setTimeout(() => {
+              this.p2p.send({
+                hello: 'world',
+              })
+            }, 1000)
+          }).catch(console.error)
+        }
+      })
+    },
+    onMessage(message) {
+      console.log({ message })
+    },
+  },
+  async mounted() {
     this.p2p = new P2P()
 
     this.p2p.onMessage = this.onMessage
 
-    const getCoords = (event) => {
-      const box = this.$refs.canvas.getBoundingClientRect()
+    if (this.$route.params.room_id) {
+      const docRef = firebase.firestore().collection('rooms').doc(this.$route.params.room_id)
+      const roomRef = await docRef.get()
+      const room = roomRef.data()
 
-      return [(event.clientX - box.left), (event.clientY - box.top)]
-    }
+      this.p2p.acceptOffer(room.offer).then((answer) => {
+        console.log({ answer })
 
-    this.context = this.$refs.canvas.getContext('2d')
-
-    const onMouseMove = (event) => {
-      const [x, y] = getCoords(event)
-
-      this.move(x, y)
-      this.movePeer(x, y)
-    }
-
-    this.$refs.canvas.addEventListener('mousedown', (event) => {
-      const [x, y] = getCoords(event)
-
-      this.start(x, y)
-      this.startPeer(x, y)
-
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseup', () => {
-        window.removeEventListener('mousemove', onMouseMove)
+        docRef.set({
+          answer: {
+            type: answer.type,
+            sdp: answer.sdp,
+          },
+        }, { merge: true })
       })
-    })
+    }
   }
 }
 </script>

@@ -13,6 +13,11 @@ const router = createRouter({
       path: '/doodle',
       component: Doodle,
     },
+    {
+      path: '/doodle/:room_id',
+      component: Doodle,
+      props: true,
+    },
   ],
 })
 

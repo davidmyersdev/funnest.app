@@ -68,7 +68,7 @@ class P2P {
   }
 
   acceptAnswer(peerAnswer) {
-    this.connection.setRemoteDescription(new RTCSessionDescription(peerAnswer))
+    return this.connection.setRemoteDescription(new RTCSessionDescription(peerAnswer))
   }
 }
 
