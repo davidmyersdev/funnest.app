@@ -14,7 +14,7 @@ const router = createRouter({
       component: Doodle,
     },
     {
-      path: '/doodle/:room_id',
+      path: '/doodle/:roomId',
       component: Doodle,
       props: true,
     },

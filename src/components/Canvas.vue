@@ -25,7 +25,7 @@
           </svg>
         </button>
         <div class="d-flex align-items-center mt-1">
-          <div v-if="showSizeSlider" class="d-flex align-items-center me-2 position-absolute end-100">
+          <div v-if="showSizeSlider" class="d-flex align-items-center p-2 me-2 position-absolute end-100 bg-translucent rounded">
             <svg :style="{ color: color }" xmlns="http://www.w3.org/2000/svg" :width="minSize" :height="minSize" fill="currentColor" class="bi bi-circle-fill" viewBox="0 0 16 16">
               <circle cx="8" cy="8" r="8"/>
             </svg>
@@ -80,6 +80,10 @@ export default {
       showSizeSlider: false,
     }
   },
+  props: {
+    p2p: Object,
+    default: {},
+  },
   computed: {
     lastLine() {
       return this.lines[this.lines.length - 1]
@@ -106,6 +110,10 @@ export default {
     reset() {
       this.lines = []
       this.clear()
+
+      this.p2p.send({
+        type: 'reset',
+      })
     },
     clear() {
       this.context.clearRect(0, 0, this.$refs.canvas.width, this.$refs.canvas.height)
@@ -129,6 +137,10 @@ export default {
     undo() {
       this.lines = this.lines.slice(0, -1)
       this.repaint()
+
+      this.p2p.send({
+        type: 'undo',
+      })
     },
     addLine(point) {
       this.lines.push({
@@ -136,6 +148,15 @@ export default {
         operation: this.operation,
         size: this.size,
         points: [point],
+      })
+      this.p2p.send({
+        type: 'start',
+        point,
+        options: {
+          color: this.color,
+          operation: this.operation,
+          size: this.size,
+        },
       })
 
       this.drawStart(point, {
@@ -150,6 +171,39 @@ export default {
 
       this.drawSeg(point)
       this.context.stroke()
+      this.p2p.send({
+        type: 'move',
+        point,
+      })
+    },
+    peerStart(point, options) {
+      this.lines.push({
+        color: options.color,
+        operation: options.operation,
+        size: options.size,
+        points: [point],
+      })
+
+      this.drawStart(point, {
+        size: options.size,
+        color: options.color,
+        operation: options.operation,
+      })
+      this.context.stroke()
+    },
+    peerMove(point) {
+      this.lastLine.points.push(point)
+
+      this.drawSeg(point)
+      this.context.stroke()
+    },
+    peerUndo() {
+      this.lines = this.lines.slice(0, -1)
+      this.repaint()
+    },
+    peerReset() {
+      this.lines = []
+      this.clear()
     },
     drawSeg(point) {
       // draw line segment
@@ -247,15 +301,7 @@ export default {
 </script>
 
 <style scoped>
-.dot {
-  background-color: #000;
-  border-radius: 100%;
-  width: 5px;
-  height: 5px;
-}
-
-.dot-max {
-  width: 20px;
-  height: 20px;
+.bg-translucent {
+  background-color: rgba(255, 255, 255, 0.5);
 }
 </style>

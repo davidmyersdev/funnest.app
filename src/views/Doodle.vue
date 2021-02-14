@@ -1,14 +1,13 @@
 <template>
   <div class="container">
+    <h2>Doodle</h2>
     <fieldset class="mb-3">
-      <legend>Create Room</legend>
-      <div class="mb-3">
-        <label for="disabledTextInput" class="form-label">Invite Link</label>
+      <div class="input-group mb-3">
+        <button @click="createRoom" type="submit" class="btn btn-primary">Create Room</button>
         <input v-model="inviteLink" type="text" class="form-control">
       </div>
-      <button @click="createRoom" type="submit" class="btn btn-primary">Create</button>
     </fieldset>
-    <Canvas ref="canvas" />
+    <Canvas ref="canvas" :p2p="p2p" />
   </div>
 </template>
 
@@ -24,6 +23,7 @@ export default {
   },
   data() {
     return {
+      p2p: null,
       room: {
         id: null,
       },
@@ -50,18 +50,27 @@ export default {
         const room = snapshot.data()
 
         if (room.answer) {
-          this.p2p.acceptAnswer(room.answer).then(() => {
-            setTimeout(() => {
-              this.p2p.send({
-                hello: 'world',
-              })
-            }, 1000)
-          }).catch(console.error)
+          this.p2p.acceptAnswer(room.answer).catch(console.error)
         }
       })
     },
     onMessage(message) {
-      console.log({ message })
+      switch (message.type) {
+        case 'start':
+          this.$refs.canvas.peerStart(message.point, message.options)
+          break;
+        case 'move':
+          this.$refs.canvas.peerMove(message.point)
+          break;
+        case 'undo':
+          this.$refs.canvas.peerUndo()
+          break;
+        case 'reset':
+          this.$refs.canvas.peerReset()
+          break;
+        default:
+          break;
+      }
     },
   },
   async mounted() {
@@ -69,14 +78,12 @@ export default {
 
     this.p2p.onMessage = this.onMessage
 
-    if (this.$route.params.room_id) {
-      const docRef = firebase.firestore().collection('rooms').doc(this.$route.params.room_id)
+    if (this.$route.params.roomId) {
+      const docRef = firebase.firestore().collection('rooms').doc(this.$route.params.roomId)
       const roomRef = await docRef.get()
       const room = roomRef.data()
 
       this.p2p.acceptOffer(room.offer).then((answer) => {
-        console.log({ answer })
-
         docRef.set({
           answer: {
             type: answer.type,

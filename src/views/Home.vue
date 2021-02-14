@@ -1,9 +1,8 @@
 <template>
-  <div class="container p-0">
-    <Canvas />
+  <div class="container">
+    <router-link to="/doodle">Doodle</router-link>
   </div>
 </template>
 
 <script setup>
-import Canvas from '@/components/Canvas.vue'
 </script>
