@@ -119,6 +119,7 @@ export default {
       })
 
       remaining.forEach(this.drawSeg)
+      this.context.stroke()
     },
     repaint() {
       this.clear()
@@ -141,16 +142,17 @@ export default {
         color: this.color,
         operation: this.operation,
       })
+      this.context.stroke()
     },
     addSeg(point) {
       this.lastLine.points.push(point)
 
       this.drawSeg(point)
+      this.context.stroke()
     },
     drawSeg(point) {
       // draw line segment
       this.context.lineTo(point.x, point.y)
-      this.context.stroke()
     },
     drawStart(point, { size, color, operation }) {
       // draw starting point
@@ -165,7 +167,6 @@ export default {
       this.context.closePath()
       this.context.fill()
       this.context.beginPath()
-      this.context.stroke()
     },
     erase() {
       this.operation = 'destination-out'
