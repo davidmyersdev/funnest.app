@@ -81,10 +81,16 @@ export default {
   },
   computed: {
     lastLine() {
-      return this.lines[this.lines.length - 1]
+      return this.lines.slice().reverse().find(line => line.source === 'self')
+    },
+    lastPeerLine() {
+      return this.lines.slice().reverse().find(line => line.source === 'peer')
     },
     lastPoint() {
       return this.lastLine.points[this.lastLine.points.length - 1]
+    },
+    lastPeerPoint() {
+      return this.lastPeerLine.points[this.lastPeerLine.points.length - 1]
     },
     erasing() {
       return this.operation === 'destination-out'
@@ -119,7 +125,18 @@ export default {
         size: line.size,
       })
 
-      remaining.forEach(this.drawSeg)
+      let lastPoint = start
+
+      remaining.forEach((point) => {
+        this.drawSeg(lastPoint, point, {
+          color: line.color,
+          operation: line.operation,
+          size: line.size,
+        })
+
+        lastPoint = point
+      })
+
       this.context.stroke()
     },
     repaint() {
@@ -127,7 +144,7 @@ export default {
       this.lines.forEach(this.drawLine)
     },
     undo() {
-      this.lines = this.lines.slice(0, -1)
+      this.lines = this.lines.filter(line => line !== this.lastLine)
       this.repaint()
 
       this.p2p.send({
@@ -136,6 +153,7 @@ export default {
     },
     addLine(point) {
       this.lines.push({
+        source: 'self',
         color: this.color,
         operation: this.operation,
         size: this.size,
@@ -159,10 +177,18 @@ export default {
       this.context.stroke()
     },
     addSeg(point) {
+      const start = this.lastPoint
+
       this.lastLine.points.push(point)
 
-      this.drawSeg(point)
+      this.context.beginPath()
+      this.drawSeg(start, point, {
+        size: this.size,
+        color: this.color,
+        operation: this.operation,
+      })
       this.context.stroke()
+      this.context.closePath()
       this.p2p.send({
         type: 'move',
         point,
@@ -170,6 +196,7 @@ export default {
     },
     peerStart(point, options) {
       this.lines.push({
+        source: 'peer',
         color: options.color,
         operation: options.operation,
         size: options.size,
@@ -184,22 +211,36 @@ export default {
       this.context.stroke()
     },
     peerMove(point) {
-      this.lastLine.points.push(point)
+      const start = this.lastPeerPoint
 
-      this.drawSeg(point)
+      this.lastPeerLine.points.push(point)
+
+      this.context.beginPath()
+      this.drawSeg(start, point, {
+        size: this.lastPeerLine.size,
+        color: this.lastPeerLine.color,
+        operation: this.lastPeerLine.operation,
+      })
       this.context.stroke()
+      this.context.closePath()
     },
     peerUndo() {
-      this.lines = this.lines.slice(0, -1)
+      this.lines = this.lines.filter(line => line !== this.lastPeerLine)
       this.repaint()
     },
     peerReset() {
       this.lines = []
       this.clear()
     },
-    drawSeg(point) {
+    drawSeg(start, end, { size, color, operation }) {
+      this.context.lineWidth = size
+      this.context.strokeStyle = color
+      this.context.fillStyle = color
+      this.context.lineCap = 'round'
+      this.context.globalCompositeOperation = operation
       // draw line segment
-      this.context.lineTo(point.x, point.y)
+      this.context.moveTo(start.x, start.y)
+      this.context.lineTo(end.x, end.y)
     },
     drawStart(point, { size, color, operation }) {
       // draw starting point
