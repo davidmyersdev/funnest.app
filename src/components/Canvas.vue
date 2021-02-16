@@ -51,6 +51,8 @@
 
 <script>
 import ButtonInputColor from '@/components/ButtonInputColor.vue'
+import Canvas from '@/lib/canvas.js'
+
 export default {
   name: 'Canvas',
   components: {
@@ -58,8 +60,8 @@ export default {
   },
   data() {
     return {
+      canvas: null,
       color: '#000000',
-      context: null,
       lines: [],
       size: 5,
       minSize: 5,
@@ -103,58 +105,29 @@ export default {
     },
     reset() {
       this.lines = []
-      this.clear()
-
-      this.p2p.send({
-        type: 'reset',
-      })
-    },
-    clear() {
-      this.context.clearRect(0, 0, this.$refs.canvas.width, this.$refs.canvas.height)
-    },
-    drawLine(line) {
-      const [start, ...remaining] = line.points
-
-      this.drawStart(start, {
-        color: line.color,
-        operation: line.operation,
-        size: line.size,
-      })
-
-      let lastPoint = start
-
-      remaining.forEach((point) => {
-        this.drawSeg(lastPoint, point, {
-          color: line.color,
-          operation: line.operation,
-          size: line.size,
-        })
-
-        lastPoint = point
-      })
-
-      this.context.stroke()
+      this.canvas.clear()
+      this.p2p.send({ type: 'reset' })
     },
     repaint() {
-      this.clear()
-      this.lines.forEach(this.drawLine)
+      this.canvas.clear()
+      this.canvas.drawLines(this.lines)
     },
     undo() {
       this.lines = this.lines.filter(line => line !== this.lastLine)
       this.repaint()
-
-      this.p2p.send({
-        type: 'undo',
-      })
+      this.p2p.send({ type: 'undo' })
     },
     addLine(point) {
       this.lines.push({
         source: 'self',
-        color: this.color,
-        operation: this.operation,
-        size: this.size,
         points: [point],
+        options: {
+          color: this.color,
+          operation: this.operation,
+          size: this.size,
+        },
       })
+
       this.p2p.send({
         type: 'start',
         point,
@@ -164,61 +137,46 @@ export default {
           size: this.size,
         },
       })
-
-      this.drawStart(point, {
-        size: this.size,
-        color: this.color,
-        operation: this.operation,
-      })
-      this.context.stroke()
     },
-    addSeg(point) {
-      const start = this.lastPoint
+    addSeg(end) {
+      const [start, ...remaining] = this.lastLine.points.slice().reverse()
 
-      this.lastLine.points.push(point)
+      this.lastLine.points.push(end)
 
-      this.context.beginPath()
-      this.drawSeg(start, point, {
-        size: this.size,
-        color: this.color,
-        operation: this.operation,
+      this.canvas.drawLine({
+        points: [start, end],
+        options: {
+          size: this.size,
+          color: this.color,
+          operation: this.operation,
+        },
       })
-      this.context.stroke()
-      this.context.closePath()
+
       this.p2p.send({
         type: 'move',
-        point,
+        point: end,
       })
     },
     peerStart(point, options) {
       this.lines.push({
         source: 'peer',
-        color: options.color,
-        operation: options.operation,
-        size: options.size,
         points: [point],
+        options: {
+          color: options.color,
+          operation: options.operation,
+          size: options.size,
+        },
       })
-
-      this.drawStart(point, {
-        size: options.size,
-        color: options.color,
-        operation: options.operation,
-      })
-      this.context.stroke()
     },
-    peerMove(point) {
+    peerMove(end) {
       const start = this.lastPeerPoint
 
-      this.lastPeerLine.points.push(point)
+      this.lastPeerLine.points.push(end)
 
-      this.context.beginPath()
-      this.drawSeg(start, point, {
-        size: this.lastPeerLine.size,
-        color: this.lastPeerLine.color,
-        operation: this.lastPeerLine.operation,
+      this.canvas.drawLine({
+        points: [start, end],
+        options: this.lastPeerLine.options,
       })
-      this.context.stroke()
-      this.context.closePath()
     },
     peerUndo() {
       this.lines = this.lines.filter(line => line !== this.lastPeerLine)
@@ -226,31 +184,7 @@ export default {
     },
     peerReset() {
       this.lines = []
-      this.clear()
-    },
-    drawSeg(start, end, { size, color, operation }) {
-      this.context.lineWidth = size
-      this.context.strokeStyle = color
-      this.context.fillStyle = color
-      this.context.lineCap = 'round'
-      this.context.globalCompositeOperation = operation
-      // draw line segment
-      this.context.moveTo(start.x, start.y)
-      this.context.lineTo(end.x, end.y)
-    },
-    drawStart(point, { size, color, operation }) {
-      // draw starting point
-      this.context.lineWidth = size
-      this.context.strokeStyle = color
-      this.context.fillStyle = color
-      this.context.lineCap = 'round'
-      this.context.globalCompositeOperation = operation
-      this.context.moveTo(point.x, point.y)
-      this.context.beginPath()
-      this.context.arc(point.x, point.y, (size / 2), 0, (2 * Math.PI))
-      this.context.closePath()
-      this.context.fill()
-      this.context.beginPath()
+      this.canvas.clear()
     },
     toggleEraser(event) {
       this.operation = this.erasing ? 'source-over' : 'destination-out'
@@ -263,65 +197,72 @@ export default {
     },
   },
   mounted() {
-    this.context = this.$refs.canvas.getContext('2d')
-    this.context.lineCap = 'round'
-    this.context.globalCompositeOperation = 'source-over'
-    this.context.translate(0.5, 0.5)
+    // Ensure the UI is fully rendered since we're accessing the canvas
+    this.$nextTick(() => {
+      this.canvas = new Canvas(this.$refs.canvas)
 
-    // match container dimensions
-    this.width = this.$refs.canvas.parentElement.clientWidth
-    this.height = this.$refs.canvas.parentElement.clientHeight
+      this.canvas.fit()
 
-    const onMouseMove = (event) => {
-      const point = this.getCoords(event)
-
-      this.addSeg(point)
-    }
-
-    const onMouseDown = (event) => {
-      const point = this.getCoords(event)
-
-      this.addLine(point)
-
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseup', () => {
-        window.removeEventListener('mousemove', onMouseMove)
-      })
-    }
-
-    const onTouchMove = (event) => {
-      // only interact if a single finger is on the screen
-      if (event.touches.length === 1) {
-        const point = this.getCoords(event.touches[0])
+      const onMouseMove = (event) => {
+        const point = this.getCoords(event)
 
         this.addSeg(point)
       }
-    }
 
-    const onTouchEnd = (event) => {
-      const point = this.lastPoint
+      const onMouseUp = (event) => {
+        const point = this.getCoords(event)
 
-      this.addSeg(point)
+        this.addSeg(point)
 
-      window.removeEventListener('touchmove', onTouchMove)
-      window.removeEventListener('touchend', onTouchEnd)
-    }
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+      }
 
-    const onTouchStart = (event) => {
-      event.preventDefault()
-      // only interact if a single finger is on the screen
-      if (event.touches.length === 1) {
-        const point = this.getCoords(event.touches[0])
+      const onMouseDown = (event) => {
+        const point = this.getCoords(event)
 
         this.addLine(point)
 
-        window.addEventListener('touchmove', onTouchMove)
-        window.addEventListener('touchend', onTouchEnd)
+        window.addEventListener('mousemove', onMouseMove)
+        window.addEventListener('mouseup', onMouseUp)
       }
-    }
 
-    this.$refs.canvas.addEventListener('mousedown', onMouseDown)
-    this.$refs.canvas.addEventListener('touchstart', onTouchStart)
+      const onTouchMove = (event) => {
+        // only interact if a single finger is on the screen
+        if (event.touches.length === 1) {
+          const point = this.getCoords(event.touches[0])
+
+          this.addSeg(point)
+        }
+      }
+
+      const onTouchEnd = (event) => {
+        if (event.touches.length === 1) {
+          const point = this.getCoords(event.touches[0])
+
+          this.addSeg(point)
+        }
+
+        window.removeEventListener('touchmove', onTouchMove)
+        window.removeEventListener('touchend', onTouchEnd)
+      }
+
+      const onTouchStart = (event) => {
+        event.preventDefault()
+        // only interact if a single finger is on the screen
+        if (event.touches.length === 1) {
+          const point = this.getCoords(event.touches[0])
+
+          this.addLine(point)
+
+          window.addEventListener('touchmove', onTouchMove)
+          window.addEventListener('touchend', onTouchEnd)
+        }
+      }
+
+      this.$refs.canvas.addEventListener('mousedown', onMouseDown)
+      this.$refs.canvas.addEventListener('touchstart', onTouchStart)
+    })
   }
 }
 </script>
