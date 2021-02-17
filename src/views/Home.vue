@@ -1,8 +1,3 @@
 <template>
-  <div class="container">
-    <router-link to="/doodle">Doodle</router-link>
-  </div>
+  <div class="container mx-auto"></div>
 </template>
-
-<script setup>
-</script>

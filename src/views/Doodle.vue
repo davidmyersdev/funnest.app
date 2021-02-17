@@ -1,13 +1,10 @@
 <template>
-  <div class="container">
-    <h2>Doodle</h2>
-    <fieldset class="mb-3">
-      <div class="input-group mb-3">
-        <button @click="createRoom" type="submit" class="btn btn-primary">Create Room</button>
-        <input v-model="inviteLink" type="text" class="form-control">
-      </div>
+  <div class="container mx-auto p-4">
+    <fieldset class="flex">
+      <button @click="createRoom" type="submit" class="rounded-l block bg-gray-100 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300">Create Room</button>
+      <input v-model="inviteLink" type="text" class="rounded-r block bg-white border-2 border-gray-100 p-2 flex-grow outline-none focus:border-blue-300">
     </fieldset>
-    <Canvas ref="canvas" :p2p="p2p" />
+    <Canvas ref="canvas" :p2p="p2p" class="mt-2" />
   </div>
 </template>
 
@@ -95,7 +92,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>

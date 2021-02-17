@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* used by vue-router to differentiate active links */
+.router-link-active {
+  @apply border-gray-300;
+}
