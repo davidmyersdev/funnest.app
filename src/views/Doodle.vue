@@ -12,9 +12,9 @@
 </template>
 
 <script>
-import Canvas from '@/components/Canvas.vue'
-import firebase from '@/firebase'
-import P2P from '@/lib/p2p'
+import Canvas from '/src/components/Canvas.vue'
+import firebase from '/src/firebase'
+import P2P from '/src/lib/p2p'
 
 export default {
   name: 'Doodle',

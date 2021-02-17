@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Doodle from '@/views/Doodle.vue'
-import Home from '@/views/Home.vue'
+import Doodle from '/src/views/Doodle.vue'
+import Home from '/src/views/Home.vue'
 
 const router = createRouter({
   history: createWebHistory(),

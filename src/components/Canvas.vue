@@ -50,8 +50,8 @@
 </template>
 
 <script>
-import ButtonInputColor from '@/components/ButtonInputColor.vue'
-import Canvas from '@/lib/canvas.js'
+import ButtonInputColor from '/src/components/ButtonInputColor.vue'
+import Canvas from '/src/lib/canvas.js'
 
 export default {
   name: 'Canvas',
