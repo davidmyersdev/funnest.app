@@ -1,8 +1,11 @@
 import { createStore } from 'vuex'
 
+import P2P from '/src/lib/p2p'
+
 const store = createStore({
   state() {
     return {
+      peer: null,
       rooms: [],
     }
   },
@@ -10,9 +13,16 @@ const store = createStore({
     addRoom(state, room) {
       state.rooms.push(room)
     },
+    setPeer(state, peer) {
+      state.peer = peer
+    },
   },
   actions: {
-    // nothing yet
+    initWebRtc(context) {
+      const peer = new P2P()
+
+      context.commit('setPeer', peer)
+    },
   },
 })
 

@@ -107,7 +107,7 @@ export default {
     reset() {
       this.lines = []
       this.canvas.clear()
-      this.p2p.send({ type: 'reset' })
+      this.$store.state.peer.send({ type: 'reset' })
     },
     repaint() {
       this.canvas.clear()
@@ -116,7 +116,7 @@ export default {
     undo() {
       this.lines = this.lines.filter(line => line !== this.lastLine)
       this.repaint()
-      this.p2p.send({ type: 'undo' })
+      this.$store.state.peer.send({ type: 'undo' })
     },
     addLine(point) {
       this.lines.push({
@@ -129,7 +129,7 @@ export default {
         },
       })
 
-      this.p2p.send({
+      this.$store.state.peer.send({
         type: 'start',
         point,
         options: {
@@ -153,7 +153,7 @@ export default {
         },
       })
 
-      this.p2p.send({
+      this.$store.state.peer.send({
         type: 'move',
         point: end,
       })
@@ -203,6 +203,11 @@ export default {
       this.canvas = new Canvas(this.$refs.canvas)
 
       this.canvas.fit()
+
+      window.addEventListener('resize', () => {
+        this.canvas.fit()
+        this.repaint()
+      })
 
       const onMouseMove = (event) => {
         const point = this.getCoords(event)

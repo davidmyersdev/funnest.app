@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "firebase": "^8.2.7",
+    "nanoid": "^3.1.20",
     "vue": "^3.0.5",
     "vue-router": "4",
     "vuex": "^4.0.0"
