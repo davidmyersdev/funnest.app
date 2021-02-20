@@ -10,8 +10,6 @@
 
 <script>
 import Canvas from '/src/components/Canvas.vue'
-import firebase from '/src/firebase'
-import P2P from '/src/lib/p2p'
 
 export default {
   name: 'Room',
@@ -57,12 +55,12 @@ export default {
       }
     },
   },
-  created() {
-    this.$store.state.peer.onMessage = this.onMessage
+  async created() {
+    if (!this.room) return this.$router.push({ name: 'doodle' })
 
-    if (!this.room) {
-      return this.$router.push({ name: 'doodle' })
-    }
+    this.$store.commit('addHandler', (message) => {
+      this.onMessage(message)
+    })
   }
 }
 </script>

@@ -1,6 +1,7 @@
 import firebase from 'firebase/app'
 
 import 'firebase/auth'
+import 'firebase/database'
 import 'firebase/firestore'
 
 // firebase config
@@ -22,6 +23,11 @@ firebase.initializeApp(config)
 if (location.hostname === 'localhost') {
   firebase.auth().useEmulator(
     import.meta.env.VITE_APP_FIREBASE_EMULATOR_AUTH,
+  )
+
+  firebase.database().useEmulator(
+    import.meta.env.VITE_APP_FIREBASE_EMULATOR_DATABASE_HOST,
+    import.meta.env.VITE_APP_FIREBASE_EMULATOR_DATABASE_PORT,
   )
 
   firebase.firestore().useEmulator(
