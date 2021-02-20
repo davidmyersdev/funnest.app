@@ -107,7 +107,10 @@ export default {
     reset() {
       this.lines = []
       this.canvas.clear()
-      this.$store.state.peer.send({ type: 'reset' })
+
+      this.$store.state.peers.forEach((peer) => {
+        peer.connection.send({ type: 'reset' })
+      })
     },
     repaint() {
       this.canvas.clear()
@@ -116,7 +119,10 @@ export default {
     undo() {
       this.lines = this.lines.filter(line => line !== this.lastLine)
       this.repaint()
-      this.$store.state.peer.send({ type: 'undo' })
+
+      this.$store.state.peers.forEach((peer) => {
+        peer.connection.send({ type: 'undo' })
+      })
     },
     addLine(point) {
       this.lines.push({
@@ -129,14 +135,16 @@ export default {
         },
       })
 
-      this.$store.state.peer.send({
-        type: 'start',
-        point,
-        options: {
-          color: this.color,
-          operation: this.operation,
-          size: this.size,
-        },
+      this.$store.state.peers.forEach((peer) => {
+        peer.connection.send({
+          type: 'start',
+          point,
+          options: {
+            color: this.color,
+            operation: this.operation,
+            size: this.size,
+          },
+        })
       })
     },
     addSeg(end) {
@@ -153,9 +161,11 @@ export default {
         },
       })
 
-      this.$store.state.peer.send({
-        type: 'move',
-        point: end,
+      this.$store.state.peers.forEach((peer) => {
+        peer.connection.send({
+          type: 'move',
+          point: end,
+        })
       })
     },
     peerStart(point, options) {

@@ -1,27 +1,148 @@
+import { nanoid } from 'nanoid'
 import { createStore } from 'vuex'
 
+import firebase from '/src/firebase'
 import P2P from '/src/lib/p2p'
+import { getUser } from '/src/lib/user'
 
 const store = createStore({
   state() {
     return {
-      peer: null,
+      handlers: [],
+      peers: [],
       rooms: [],
+      user: null,
     }
   },
   mutations: {
+    addHandler(state, handler) {
+      state.handlers.push(handler)
+    },
+    addMember(state, { member, room }) {
+      state.rooms.find(r => r.id === room.id).members.push(member)
+    },
+    addPeer(state, peer) {
+      state.peers.push(peer)
+    },
     addRoom(state, room) {
       state.rooms.push(room)
     },
-    setPeer(state, peer) {
-      state.peer = peer
+    setUser(state, user) {
+      state.user = user
     },
   },
   actions: {
-    initWebRtc(context) {
-      const peer = new P2P()
+    async connectToPeer(context, { id }) {
+      const user = await getUser()
+      const userRef = firebase.database().ref(`peers/${id}`)
+      const offerRef = userRef.push()
+      const connection = new P2P()
+      const offer = await connection.createOffer()
 
-      context.commit('setPeer', peer)
+      offerRef.set({
+        offer: {
+          type: offer.type,
+          sdp: offer.sdp,
+        },
+        peerId: user.uid,
+      })
+
+      connection.onMessage = (message) => {
+        context.state.handlers.forEach(handler => handler(message))
+      }
+
+      offerRef.on('value', (data) => {
+        if (data.val() && data.val().answer) {
+          connection.acceptAnswer(data.val().answer)
+
+          offerRef.remove()
+        }
+      })
+
+      const peer = {
+        id,
+        connection,
+      }
+
+      context.commit('addPeer', peer)
+    },
+    async connectToPeers(context, peers) {
+      return Promise.all(peers.map(peer => context.dispatch('connectToPeer', peer)))
+    },
+    async createRoom(context) {
+      const user = await getUser()
+      const roomData = {
+        members: [{ id: user.uid }],
+        ownerId: user.uid,
+      }
+      const roomRef = await firebase.firestore().collection('rooms').add(roomData)
+      const room = {
+        id: nanoid(6),
+        inviteId: roomRef.id,
+        ...roomData,
+      }
+
+      context.commit('addRoom', room)
+      context.dispatch('listenForPeers')
+
+      return room
+    },
+    async joinRoom(context, roomId) {
+      const user = await getUser()
+      const docRef = firebase.firestore().collection('rooms').doc(roomId)
+      const roomRef = await docRef.get()
+      const me = { id: user.uid }
+      const roomData = roomRef.data()
+      const room = {
+        id: nanoid(6),
+        inviteId: roomRef.id,
+        members: [...roomData.members, me],
+        ownerId: roomData.ownerId,
+      }
+
+      // join room
+      docRef.set({
+        members: firebase.firestore.FieldValue.arrayUnion(me),
+      }, { merge: true })
+
+      context.commit('addRoom', room)
+      context.dispatch('connectToPeers', roomData.members)
+      context.dispatch('listenForPeers')
+
+      return room
+    },
+    async listenForPeers(context) {
+      const user = await getUser()
+      const userRef = firebase.database().ref(`peers/${user.uid}`)
+
+      userRef.remove()
+
+      userRef.on('child_added', async (data) => {
+        if (data.val().offer) {
+          const connection = new P2P()
+          const answerRef = firebase.database().ref(`peers/${user.uid}/${data.key}`)
+          const answer = await connection.acceptOffer(data.val().offer)
+          const peer = {
+            id: data.val().peerId,
+            connection,
+          }
+
+          answerRef.set({
+            answer: {
+              type: answer.type,
+              sdp: answer.sdp,
+            },
+            peerId: user.uid,
+          })
+
+          connection.onMessage = (message) => {
+            context.state.handlers.forEach(handler => handler(message))
+          }
+
+
+          context.commit('addPeer', peer)
+        }
+      })
     },
   },
 })
