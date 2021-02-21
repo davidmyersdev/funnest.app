@@ -9,6 +9,7 @@ const store = createStore({
   state() {
     return {
       handlers: [],
+      messages: [],
       peers: [],
       rooms: [],
       user: null,
@@ -20,6 +21,9 @@ const store = createStore({
     },
     addMember(state, { member, room }) {
       state.rooms.find(r => r.id === room.id).members.push(member)
+    },
+    addMessage(state, message) {
+      state.messages.push(message)
     },
     addPeer(state, peer) {
       state.peers.push(peer)
@@ -142,6 +146,30 @@ const store = createStore({
 
           context.commit('addPeer', peer)
         }
+      })
+    },
+    async sendMessage(context, message) {
+      const user = await getUser()
+
+      context.commit('addMessage', {
+        peer: {
+          id: user.uid,
+          name: 'local',
+        },
+        value: message,
+      })
+
+      context.state.peers.forEach((peer) => {
+        peer.connection.send({
+          type: 'message',
+          message: {
+            peer: {
+              id: user.uid,
+              name: 'remote',
+            },
+            value: message,
+          },
+        })
       })
     },
   },

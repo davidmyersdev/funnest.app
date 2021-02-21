@@ -5,16 +5,19 @@
       <button @click="copyInvite" type="submit" class="rounded-r block bg-gray-100 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300">Copy Invite</button>
     </fieldset>
     <Canvas ref="canvas" class="mt-2" />
+    <Chat />
   </div>
 </template>
 
 <script>
 import Canvas from '/src/components/Canvas.vue'
+import Chat from '/src/components/Chat.vue'
 
 export default {
   name: 'Room',
   components: {
     Canvas,
+    Chat,
   },
   props: {
     roomId: String,
