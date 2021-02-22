@@ -14,8 +14,21 @@ class P2P {
   }
 
   send(data) {
-    if (this.channel) {
-      this.channel.send(JSON.stringify(data))
+    if (this.connection.connectionState) {
+      if (this.channel) {
+        if (this.channel.readyState === 'open') {
+          this.channel.send(JSON.stringify(data))
+        } else {
+          // readyState not open
+          console.info('dataChannel.readyState', this.channel.readyState)
+        }
+      } else {
+        // no data channel
+        console.info('datachannel', this.channel)
+      }
+    } else {
+      // not connected
+      console.info('connection', this.connection.connectionState)
     }
   }
 

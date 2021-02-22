@@ -1,9 +1,9 @@
 <template>
   <div class="mt-4">
-    <div class="rounded border-2 border-gray-100 p-2 h-40 overflow-auto">
-      <div v-for="message in messages" class="bg-gray-100 p-2 mb-2">
-        <div class="text-sm">{{ message.peer.id }}</div>
-        <div>{{ message.value }}</div>
+    <div ref="messagesContainer" class="rounded border-2 border-gray-100 p-2 h-40 overflow-auto">
+      <div :ref="setMessageRef" v-for="message in messages" class="bg-gray-100 p-2 mb-2 last:mb-0">
+        <div class="text-sm text-gray-400">{{ message.peer.id }}</div>
+        <div class="truncate">{{ message.value }}</div>
       </div>
     </div>
     <fieldset class="flex mt-4">
@@ -17,6 +17,7 @@
 export default {
   data() {
     return {
+      messageRefs: [],
       text: '',
     }
   },
@@ -26,9 +27,35 @@ export default {
     },
   },
   methods: {
+    scroll() {
+      const container = this.$refs.messagesContainer
+      const element = this.messageRefs[this.messageRefs.length - 1]
+      const scrolltop = container.scrollTop
+      const offsetheight = container.offsetHeight
+      const offsettop = element.offsetTop
+      const height = element.offsetHeight
+      const scrolloffset = (offsettop - offsetheight) + height
+
+      container.scroll(0, scrolloffset)
+    },
     sendMessage() {
       this.$store.dispatch('sendMessage', this.text)
+
+      this.text = ''
     },
+    setMessageRef(element) {
+      this.messageRefs.push(element)
+    },
+  },
+  beforeUpdate() {
+    this.messageRefs = []
+  },
+  updated() {
+    // todo: move chat history into a standalone component with props
+    // this method is called every time the input field is modified (typing)
+    if (this.messages.length > 0) {
+      this.scroll()
+    }
   },
   created() {
     this.$store.commit('addHandler', (data) => {

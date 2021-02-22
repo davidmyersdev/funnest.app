@@ -4,8 +4,10 @@
       <input ref="invite" v-model="inviteLink" type="text" class="rounded-l block bg-white border-2 border-gray-100 p-2 flex-grow outline-none focus:border-blue-300" readonly>
       <button @click="copyInvite" type="submit" class="rounded-r block bg-gray-100 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300">Copy Invite</button>
     </fieldset>
-    <Canvas ref="canvas" class="mt-2" />
-    <Chat />
+    <div class="flex flex-col md:flex-row mt-4">
+      <Canvas ref="canvas" class="md:w-1/2" />
+      <Chat class="md:mt-0 md:ml-4 md:w-1/2" />
+    </div>
   </div>
 </template>
 

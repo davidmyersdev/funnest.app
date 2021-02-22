@@ -19,17 +19,26 @@ const store = createStore({
     addHandler(state, handler) {
       state.handlers.push(handler)
     },
-    addMember(state, { member, room }) {
-      state.rooms.find(r => r.id === room.id).members.push(member)
-    },
     addMessage(state, message) {
-      state.messages.push(message)
+      const existingMessage = state.messages.find(m => m.id === message.id)
+
+      if (!existingMessage) {
+        state.messages.push(message)
+      }
     },
     addPeer(state, peer) {
-      state.peers.push(peer)
+      const existingPeer = state.peers.find(p => p.id === peer.id)
+
+      if (!existingPeer) {
+        state.peers.push(peer)
+      }
     },
     addRoom(state, room) {
-      state.rooms.push(room)
+      const existingRoom = state.rooms.find(r => r.id === room.id)
+
+      if (!existingRoom) {
+        state.rooms.push(room)
+      }
     },
     setUser(state, user) {
       state.user = user
@@ -148,27 +157,23 @@ const store = createStore({
         }
       })
     },
-    async sendMessage(context, message) {
+    async sendMessage(context, value) {
       const user = await getUser()
-
-      context.commit('addMessage', {
+      const message = {
+        id: nanoid(),
         peer: {
           id: user.uid,
           name: 'local',
         },
-        value: message,
-      })
+        value,
+      }
+
+      context.commit('addMessage', message)
 
       context.state.peers.forEach((peer) => {
         peer.connection.send({
           type: 'message',
-          message: {
-            peer: {
-              id: user.uid,
-              name: 'remote',
-            },
-            value: message,
-          },
+          message,
         })
       })
     },
