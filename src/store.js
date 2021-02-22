@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid'
 import { createStore } from 'vuex'
 
 import firebase from '/src/firebase'
-import P2P from '/src/lib/p2p'
+import Peer from '/src/lib/peer'
 import { getUser } from '/src/lib/user'
 
 const store = createStore({
@@ -49,8 +49,8 @@ const store = createStore({
       const user = await getUser()
       const userRef = firebase.database().ref(`peers/${id}`)
       const offerRef = userRef.push()
-      const connection = new P2P()
-      const offer = await connection.createOffer()
+      const peer = new Peer({ id })
+      const offer = await peer.createOffer()
 
       offerRef.set({
         offer: {
@@ -60,22 +60,17 @@ const store = createStore({
         peerId: user.uid,
       })
 
-      connection.onMessage = (message) => {
+      peer.onMessage = (message) => {
         context.state.handlers.forEach(handler => handler(message))
       }
 
       offerRef.on('value', (data) => {
         if (data.val() && data.val().answer) {
-          connection.acceptAnswer(data.val().answer)
+          peer.acceptAnswer(data.val().answer)
 
           offerRef.remove()
         }
       })
-
-      const peer = {
-        id,
-        connection,
-      }
 
       context.commit('addPeer', peer)
     },
@@ -132,13 +127,9 @@ const store = createStore({
 
       userRef.on('child_added', async (data) => {
         if (data.val().offer) {
-          const connection = new P2P()
+          const peer = new Peer({ id: data.val().peerId })
           const answerRef = firebase.database().ref(`peers/${user.uid}/${data.key}`)
-          const answer = await connection.acceptOffer(data.val().offer)
-          const peer = {
-            id: data.val().peerId,
-            connection,
-          }
+          const answer = await peer.acceptOffer(data.val().offer)
 
           answerRef.set({
             answer: {
@@ -148,7 +139,7 @@ const store = createStore({
             peerId: user.uid,
           })
 
-          connection.onMessage = (message) => {
+          peer.onMessage = (message) => {
             context.state.handlers.forEach(handler => handler(message))
           }
 
@@ -171,7 +162,7 @@ const store = createStore({
       context.commit('addMessage', message)
 
       context.state.peers.forEach((peer) => {
-        peer.connection.send({
+        peer.send({
           type: 'message',
           message,
         })

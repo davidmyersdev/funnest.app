@@ -74,10 +74,6 @@ export default {
       showSizeSlider: false,
     }
   },
-  props: {
-    p2p: Object,
-    default: {},
-  },
   computed: {
     lastLine() {
       return this.lines.slice().reverse().find(line => line.source === 'self')
@@ -109,7 +105,7 @@ export default {
       this.canvas.clear()
 
       this.$store.state.peers.forEach((peer) => {
-        peer.connection.send({ type: 'reset' })
+        peer.send({ type: 'reset' })
       })
     },
     repaint() {
@@ -121,7 +117,7 @@ export default {
       this.repaint()
 
       this.$store.state.peers.forEach((peer) => {
-        peer.connection.send({ type: 'undo' })
+        peer.send({ type: 'undo' })
       })
     },
     addLine(point) {
@@ -136,7 +132,7 @@ export default {
       })
 
       this.$store.state.peers.forEach((peer) => {
-        peer.connection.send({
+        peer.send({
           type: 'start',
           point,
           options: {
@@ -162,7 +158,7 @@ export default {
       })
 
       this.$store.state.peers.forEach((peer) => {
-        peer.connection.send({
+        peer.send({
           type: 'move',
           point: end,
         })

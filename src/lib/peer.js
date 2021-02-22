@@ -1,7 +1,8 @@
 const RTCPeerConnection = window.RTCPeerConnection || webkitRTCPeerConnection || mozRTCPeerConnection
 
-class P2P {
-  constructor() {
+class Peer {
+  constructor({ id }) {
+    this.id = id
     this.connection = new RTCPeerConnection({
       iceServers: [{
         urls: ['stun:stun.l.google.com:19302'],
@@ -85,4 +86,4 @@ class P2P {
   }
 }
 
-export default P2P
+export default Peer
