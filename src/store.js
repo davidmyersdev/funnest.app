@@ -64,14 +64,6 @@ const store = createStore({
         context.state.handlers.forEach(handler => handler(message))
       }
 
-      offerRef.on('value', (data) => {
-        if (data.val() && data.val().answer) {
-          peer.acceptAnswer(data.val().answer)
-
-          offerRef.remove()
-        }
-      })
-
       context.commit('addPeer', peer)
     },
     async connectToPeers(context, peers) {
@@ -126,10 +118,14 @@ const store = createStore({
       userRef.remove()
 
       userRef.on('child_added', async (data) => {
+        // someone pushed an offer onto our queue
         if (data.val().offer) {
           const peer = new Peer({ id: data.val().peerId })
-          const answerRef = firebase.database().ref(`peers/${user.uid}/${data.key}`)
+          const offerRef = firebase.database().ref(`peers/${user.uid}/${data.key}`)
+          const answerRef = firebase.database().ref(`peers/${data.val().peerId}`).push()
           const answer = await peer.acceptOffer(data.val().offer)
+
+          offerRef.remove()
 
           answerRef.set({
             answer: {
@@ -143,8 +139,17 @@ const store = createStore({
             context.state.handlers.forEach(handler => handler(message))
           }
 
-
           context.commit('addPeer', peer)
+        // someone pushed an answer onto our queue
+        } else if (data.val().answer) {
+          const peer = context.state.peers.find(p => p.id === data.val().peerId)
+          const answerRef = firebase.database().ref(`peers/${user.uid}/${data.key}`)
+
+          if (peer) {
+            peer.acceptAnswer(data.val().answer)
+          }
+
+          answerRef.remove()
         }
       })
     },
@@ -161,12 +166,16 @@ const store = createStore({
 
       context.commit('addMessage', message)
 
-      context.state.peers.forEach((peer) => {
-        peer.send({
-          type: 'message',
-          message,
+      return Promise.all(context.state.peers.map((peer) => {
+        return new Promise((resolve, reject) => {
+          peer.send({
+            type: 'message',
+            message,
+          })
+
+          resolve()
         })
-      })
+      }))
     },
   },
 })
