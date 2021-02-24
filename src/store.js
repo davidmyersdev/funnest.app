@@ -8,17 +8,14 @@ import { getUser } from '/src/lib/user'
 const store = createStore({
   state() {
     return {
-      handlers: [],
       messages: [],
       peers: [],
       rooms: [],
       user: null,
+      name: '',
     }
   },
   mutations: {
-    addHandler(state, handler) {
-      state.handlers.push(handler)
-    },
     addMessage(state, message) {
       const existingMessage = state.messages.find(m => m.id === message.id)
 
@@ -39,6 +36,9 @@ const store = createStore({
       if (!existingRoom) {
         state.rooms.push(room)
       }
+    },
+    setName(state, name) {
+      state.name = name
     },
     setUser(state, user) {
       state.user = user
@@ -61,7 +61,7 @@ const store = createStore({
       })
 
       peer.onMessage = (message) => {
-        context.state.handlers.forEach(handler => handler(message))
+        context.commit('addMessage', message)
       }
 
       context.commit('addPeer', peer)
@@ -136,7 +136,7 @@ const store = createStore({
           })
 
           peer.onMessage = (message) => {
-            context.state.handlers.forEach(handler => handler(message))
+            context.commit('addMessage', message)
           }
 
           context.commit('addPeer', peer)
@@ -147,31 +147,31 @@ const store = createStore({
 
           if (peer) {
             peer.acceptAnswer(data.val().answer)
+          } else {
+            console.info('No peer found...')
           }
 
           answerRef.remove()
         }
       })
     },
-    async sendMessage(context, value) {
+    async sendMessage(context, { type, data }) {
       const user = await getUser()
       const message = {
         id: nanoid(),
         peer: {
           id: user.uid,
-          name: 'local',
+          name: context.state.name,
         },
-        value,
+        data,
+        type,
       }
 
       context.commit('addMessage', message)
 
       return Promise.all(context.state.peers.map((peer) => {
         return new Promise((resolve, reject) => {
-          peer.send({
-            type: 'message',
-            message,
-          })
+          peer.send(message)
 
           resolve()
         })

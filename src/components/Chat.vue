@@ -1,12 +1,12 @@
 <template>
-  <div class="mt-4">
+  <div>
     <div ref="messagesContainer" class="rounded border-2 border-gray-100 p-2 h-40 overflow-auto">
       <div :ref="setMessageRef" v-for="message in messages" class="bg-gray-100 p-2 mb-2 last:mb-0">
-        <div class="text-sm text-gray-400">{{ message.peer.id }}</div>
-        <div class="truncate">{{ message.value }}</div>
+        <div class="text-sm text-gray-400">{{ message.peer.name || message.peer.id }}</div>
+        <div class="truncate">{{ message.data }}</div>
       </div>
     </div>
-    <fieldset class="flex mt-4">
+    <fieldset class="flex mt-2">
       <input @keyup.enter="sendMessage" ref="invite" v-model="text" type="text" class="rounded-l block bg-white border-2 border-gray-100 p-2 flex-grow outline-none focus:border-blue-300">
       <button @click="sendMessage" type="submit" class="rounded-r block bg-gray-100 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300">Send Message</button>
     </fieldset>
@@ -23,7 +23,7 @@ export default {
   },
   computed: {
     messages() {
-      return this.$store.state.messages
+      return this.$store.state.messages.filter(message => message.type === 'chat')
     },
   },
   methods: {
@@ -39,7 +39,10 @@ export default {
       container.scroll(0, scrolloffset)
     },
     sendMessage() {
-      this.$store.dispatch('sendMessage', this.text)
+      this.$store.dispatch('sendMessage', {
+        type: 'chat',
+        data: this.text,
+      })
 
       this.text = ''
     },
@@ -56,13 +59,6 @@ export default {
     if (this.messages.length > 0) {
       this.scroll()
     }
-  },
-  created() {
-    this.$store.commit('addHandler', (data) => {
-      if (data.type === 'message') {
-        this.$store.commit('addMessage', data.message)
-      }
-    })
   },
 }
 </script>

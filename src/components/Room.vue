@@ -1,28 +1,42 @@
 <template>
   <div class="container mx-auto p-4">
-    <fieldset class="flex">
-      <input ref="invite" v-model="inviteLink" type="text" class="rounded-l block bg-white border-2 border-gray-100 p-2 flex-grow outline-none focus:border-blue-300" readonly>
-      <button @click="copyInvite" type="submit" class="rounded-r block bg-gray-100 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300">Copy Invite</button>
-    </fieldset>
-    <div class="flex flex-col md:flex-row mt-4">
-      <Canvas ref="canvas" class="md:w-1/2" />
-      <Chat class="md:mt-0 md:ml-4 md:w-1/2" />
+    <div v-if="showGame">
+      <Game class="mb-2" />
+    </div>
+    <div v-else>
+      <div class="flex mb-2">
+        <div class="rounded-l bg-gray-100 border-2 border-gray-100 p-2">Name</div>
+        <input v-model="name" type="text" class="rounded-r block bg-white border-2 border-gray-100 p-2 flex-grow outline-none focus:border-blue-300">
+      </div>
+      <div class="flex">
+        <input ref="invite" v-model="inviteLink" type="text" class="rounded-l block bg-white border-2 border-gray-100 p-2 flex-grow outline-none focus:border-blue-300" readonly>
+        <button @click="copyInvite" type="submit" class="rounded-r block bg-gray-100 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300">Copy Invite</button>
+      </div>
+      <div class="flex justify-center mt-2">
+        <button @click="startGame" type="submit" class="rounded block w-1/2 bg-gray-100 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300">
+          Start Game
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import Canvas from '/src/components/Canvas.vue'
-import Chat from '/src/components/Chat.vue'
+import Game from '/src/components/Game.vue'
 
 export default {
   name: 'Room',
   components: {
-    Canvas,
-    Chat,
+    Game,
   },
   props: {
     roomId: String,
+  },
+  data() {
+    return {
+      showGame: false,
+      unsubscribe: null,
+    }
   },
   computed: {
     inviteLink() {
@@ -31,6 +45,14 @@ export default {
 
         return path ? `${location.protocol}//${location.host}${path}` : null
       }
+    },
+    name: {
+      get() {
+        return this.$store.state.name
+      },
+      set(value) {
+        this.$store.commit('setName', value)
+      },
     },
     room() {
       return this.$store.state.rooms.find(room => room.id === this.roomId)
@@ -41,31 +63,24 @@ export default {
       this.$refs.invite.select()
       document.execCommand('copy')
     },
-    onMessage(message) {
-      switch (message.type) {
-        case 'start':
-          this.$refs.canvas.peerStart(message.point, message.options)
-          break;
-        case 'move':
-          this.$refs.canvas.peerMove(message.point)
-          break;
-        case 'undo':
-          this.$refs.canvas.peerUndo()
-          break;
-        case 'reset':
-          this.$refs.canvas.peerReset()
-          break;
-        default:
-          break;
-      }
+    startGame() {
+      this.showGame = true
+      this.$store.dispatch('sendMessage', { type: 'start_game' })
     },
   },
-  async created() {
+  created() {
     if (!this.room) return this.$router.push({ name: 'doodle' })
 
-    this.$store.commit('addHandler', (message) => {
-      this.onMessage(message)
+    this.unsubscribe = this.$store.subscribe(({ type, payload: message }, state) => {
+      if (type === 'addMessage' && message.type === 'start_game') {
+        this.showGame = true
+      }
     })
-  }
+  },
+  beforeUnmount() {
+    if (this.unsubscribe) {
+      this.unsubscribe()
+    }
+  },
 }
 </script>

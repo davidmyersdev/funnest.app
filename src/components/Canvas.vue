@@ -72,6 +72,7 @@ export default {
       operation: 'source-over',
       showTools: true,
       showSizeSlider: false,
+      unsubscribe: null,
     }
   },
   computed: {
@@ -202,6 +203,33 @@ export default {
     toggleTools() {
       this.showTools = !this.showTools
     },
+  },
+  created() {
+    this.unsubscribe = this.$store.subscribe(({ type, payload: message }, state) => {
+      if (type === 'addMessage') {
+        switch (message.type) {
+          case 'start':
+            this.peerStart(message.point, message.options)
+            break;
+          case 'move':
+            this.peerMove(message.point)
+            break;
+          case 'undo':
+            this.peerUndo()
+            break;
+          case 'reset':
+            this.peerReset()
+            break;
+          default:
+            break;
+        }
+      }
+    })
+  },
+  beforeUnmount() {
+    if (this.unsubscribe) {
+      this.unsubscribe()
+    }
   },
   mounted() {
     // Ensure the UI is fully rendered since we're accessing the canvas
