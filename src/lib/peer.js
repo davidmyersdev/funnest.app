@@ -1,4 +1,4 @@
-const RTCPeerConnection = window.RTCPeerConnection || webkitRTCPeerConnection || mozRTCPeerConnection
+const RTCPeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection
 
 class Peer {
   constructor({ id }) {
@@ -15,7 +15,7 @@ class Peer {
   }
 
   send(data) {
-    if (this.connection.connectionState) {
+    if (this.connection.iceConnectionState) {
       if (this.channel) {
         if (this.channel.readyState === 'open') {
           this.channel.send(JSON.stringify(data))
@@ -29,7 +29,7 @@ class Peer {
       }
     } else {
       // not connected
-      console.info('connection', this.connection.connectionState)
+      console.info('connection.iceConnectionState', this.connection.iceConnectionState)
     }
   }
 
