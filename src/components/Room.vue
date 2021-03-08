@@ -1,6 +1,7 @@
 <template>
   <div class="container mx-auto p-4">
     <div v-if="showGame">
+      <div v-if="word || placeholder" class="flex items-center justify-center font-bold mb-4 tracking-widest">{{ word || placeholder }}</div>
       <Game :readonly="readonly" class="mb-2" />
     </div>
     <div v-else>
@@ -18,6 +19,13 @@
         </button>
       </div>
     </div>
+    <Modal v-if="words.length > 0">
+      <div class="flex flex-col w-full p-4">
+        <button v-for="word in words" @click="chooseWord(word)" class="rounded block w-full bg-gray-200 border-2 border-gray-100 p-2 outline-none focus:outline-none focus:border-blue-300 active:bg-blue-300 mb-2">
+          {{ word }}
+        </button>
+      </div>
+    </Modal>
     <div>
       <div v-for="peer in peers" class="p-2 mb-2">
         <div class="text-sm text-gray-400">{{ peer.name || peer.id }}</div>
@@ -31,11 +39,13 @@
 
 <script>
 import Game from '/src/components/Game.vue'
+import Modal from '/src/components/Modal.vue'
 
 export default {
   name: 'Room',
   components: {
     Game,
+    Modal,
   },
   props: {
     roomId: String,
@@ -43,8 +53,11 @@ export default {
   data() {
     return {
       activeUserId: null,
+      placeholder: '',
       showGame: false,
       unsubscribe: null,
+      word: '',
+      words: [],
     }
   },
   computed: {
@@ -80,6 +93,12 @@ export default {
     },
   },
   methods: {
+    chooseWord(word) {
+      this.word = word
+      this.words = []
+
+      this.sendWord()
+    },
     copyInvite() {
       this.$refs.invite.select()
       document.execCommand('copy')
@@ -92,15 +111,30 @@ export default {
         },
       })
     },
+    pickWords() {
+      return [...Array(3)].map(thing => this.pickWord())
+    },
+    pickWord() {
+      return this.$store.state.words[Math.floor(Math.random() * this.$store.state.words.length)]
+    },
+    sendWord() {
+      const placeholder = this.word.replace(/[a-zA-Z]/g, '_')
+
+      this.$store.dispatch('sendMessage', { type: 'placeholder', data: placeholder })
+    },
     startGame() {
       this.showGame = true
       this.$store.dispatch('sendMessage', { type: 'start_game' })
+
+      this.words = this.pickWords()
     },
   },
   async created() {
     if (!this.room) return this.$router.push({ name: 'doodle' })
 
     this.activeUserId = this.room.ownerId
+
+    this.$store.dispatch('loadWords')
 
     this.unsubscribe = this.$store.subscribe(({ type, payload: message }, state) => {
       if (type === 'addMessage') {
@@ -113,8 +147,8 @@ export default {
             this.activeUserId = message.data.userId
 
             break;
-          case 'chat':
-            if (message.data)
+          case 'placeholder':
+            this.placeholder = message.data
 
             break;
           default:

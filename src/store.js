@@ -9,10 +9,11 @@ const store = createStore({
   state() {
     return {
       messages: [],
+      name: '',
       peers: [],
       rooms: [],
       user: null,
-      name: '',
+      words: [],
     }
   },
   mutations: {
@@ -42,6 +43,9 @@ const store = createStore({
     },
     setUser(state, user) {
       state.user = user
+    },
+    setWords(state, words) {
+      state.words = words
     },
   },
   actions: {
@@ -154,6 +158,12 @@ const store = createStore({
           answerRef.remove()
         }
       })
+    },
+    async loadWords(context) {
+      const response = await fetch('/words.json')
+      const words = await response.json()
+
+      context.commit('setWords', words)
     },
     async sendMessage(context, { type, data }) {
       const user = await getUser()
